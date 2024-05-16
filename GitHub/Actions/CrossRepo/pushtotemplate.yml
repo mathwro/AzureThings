@@ -1,0 +1,83 @@
+name: Push to template repository
+
+on:
+  #push:
+  #  branches:
+  #    - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  Push_to_template_repository:
+    runs-on: ubuntu-latest
+    env:
+      DESTINATION_REPO: xxx
+      SOURCE_REPO: xxx
+      GITHUB_USERNAME: xxx
+      
+    steps:
+      - name: Checkout source repository
+        uses: actions/checkout@v3
+
+      - name: Configure SSH keys
+        env:
+          SSH_DEPLOY_KEY: ${{ secrets.SSH_DEPLOY_KEY }}
+        run: |
+          echo "[+] Setting up SSH configuration"
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_DEPLOY_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa >/dev/null
+          echo "[+] Adding github.com to known hosts"
+          ssh-keyscan -H github.com > ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Checkout destination repository
+        run: |
+          echo "[+] Setting up git SSH command"
+          git config --local core.sshCommand "ssh -i ~/.ssh/id_rsa -o UserKnownHostsFile=/github/home/.ssh/known_hosts'"
+
+          echo "[+] Cloning the destination repository"
+          git clone --quiet git@github.com:$GITHUB_USERNAME/$DESTINATION_REPO.git ../$DESTINATION_REPO >/dev/null
+          cd ../$DESTINATION_REPO
+
+          echo "[+] Checkout main branch"
+          git pull origin main --quiet
+          git checkout main --quiet
+          
+          echo "[+] Setting up git configuration"
+          git config --local user.name "Github Automation"
+
+      - name: Get files from source repository
+        run: |
+
+          # Copy files from source repository to destination repository
+          echo "[+] Copying files from source repository to destination repository"
+          cd .. # Move to the root directory
+          
+          # Docs
+          echo "[+] Copying documentation files"
+          mkdir -p $DESTINATION_REPO/docs
+          cp -R $SOURCE_REPO/docs/Customer/* $DESTINATION_REPO/docs
+
+          # IAC
+          echo "[+] Copying IAC files"
+          mkdir -p CustomerTemplate/IAC
+          cp -R $SOURCE_REPO/IAC/Customer/* $DESTINATION_REPO/IAC
+
+      - name: Push files to destination repository
+        run: |
+
+          # Push files to destination repository
+          echo "[+] Pushing files to destination repository"
+          cd ../$DESTINATION_REPO
+          git add .
+          
+          # Check if there are any changes to push
+          if [[ `git status --porcelain` ]]; then
+            git commit -m "Pushing files from source repository"
+            git push origin main --quiet
+            echo "[+] Changes pushed successfully"
+          else
+            echo "[*] No changes to push"
+          fi

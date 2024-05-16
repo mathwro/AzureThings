@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  Push_to_template_repository:
+  Push_to_repository:
     runs-on: ubuntu-latest
     env:
       DESTINATION_REPO: xxx
@@ -62,7 +62,7 @@ jobs:
 
           # IAC
           echo "[+] Copying IAC files"
-          mkdir -p CustomerTemplate/IAC
+          mkdir -p $DESTINATION_REPO/IAC
           cp -R $SOURCE_REPO/IAC/Customer/* $DESTINATION_REPO/IAC
 
       - name: Push files to destination repository
